@@ -36,12 +36,13 @@ class PlaylistService {
     this.$log.debug('removeFromPlaylist', item, playlist);
     this.socketService.emit('removeFromPlaylist', {
       name: playlist,
-      uri: item.uri
+      uri: item.uri,
+      service: (item.service || null)
     });
   }
 
   deletePlaylist(playlist) {
-    this.socketService.emit('deletePlaylist', {value: playlist});
+    this.socketService.emit('deletePlaylist', {name: playlist});
   }
 
   //Favourites

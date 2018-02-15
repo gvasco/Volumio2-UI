@@ -1,7 +1,30 @@
-function routerConfig ($stateProvider, $urlRouterProvider,
-      $locationProvider, themeManagerProvider) {
+function routerConfig ($stateProvider, $urlRouterProvider, $locationProvider, themeManagerProvider) {
   'ngInject';
-  console.info('[TEME]: ' + themeManagerProvider.theme);
+  console.info('[TEME]: ' + themeManagerProvider.theme, '[VARIANT]: ' + themeManagerProvider.variant);
+
+  const resolverFn = (
+    $rootScope,
+    $http,
+    $window,
+    socketService,
+    ripperService,
+    modalListenerService,
+    toastMessageService,
+    uiSettingsService,
+    updaterService) => {
+      let localhostApiURL = `http://${$window.location.hostname }/api`;
+      return $http.get(localhostApiURL + '/host').then((response) => {
+        console.info('IP from API', response);
+        $rootScope.initConfig = response.data;
+        socketService.host  = response.data.host;
+      }, () => {
+        //Fallback socket
+        console.info('IP from fallback');
+        return $http.get('/app/local-config.json').then((response) => {
+          socketService.host  = response.data.localhost;
+        });
+      });
+    };
 
   $locationProvider.html5Mode(true);
   $stateProvider
@@ -27,29 +50,32 @@ function routerConfig ($stateProvider, $urlRouterProvider,
       },
       resolve: {
         //NOTE this resolver init also global services like toast
-        socketResolver: (
-          $rootScope,
-          $http,
-          $window,
-          socketService,
-          ripperService,
-          modalListenerService,
-          toastMessageService,
-          uiSettingsService,
-          updaterService) => {
-            let localhostApiURL = `http://${$window.location.hostname }/api`;
-            return $http.get(localhostApiURL + '/host').then((response) => {
+        socketResolver: ($rootScope, $http, $window, socketService, ripperService, modalListenerService,
+            toastMessageService, uiSettingsService, updaterService) => {
+          let localhostApiURL = `http://${$window.location.hostname}/api`;
+          return $http.get(localhostApiURL + '/host')
+            .then((response) => {
               console.info('IP from API', response);
               $rootScope.initConfig = response.data;
-              socketService.host  = response.data.host;
+              const hosts = response.data;
+              const firstHostKey = Object.keys(hosts)[0];
+              socketService.hosts = hosts;
+              socketService.host = hosts[firstHostKey];
             }, () => {
               //Fallback socket
-              console.info('IP from fallback');
+              console.info('Dev mode: IP from local-config.json');
               return $http.get('/app/local-config.json').then((response) => {
-                socketService.host  = response.data.localhost;
+                // const hosts = {
+                //   'host1': 'http://192.168.0.65',
+                //   'host2': 'http://192.168.0.66',
+                //   'host3': 'http://192.168.0.67'};
+                const hosts = {'devHost': response.data.localhost};
+                const firstHostKey = Object.keys(hosts)[0];
+                socketService.hosts = hosts;
+                socketService.host = hosts[firstHostKey];
               });
             });
-          }
+        }
       }
     })
 
@@ -107,6 +133,7 @@ function routerConfig ($stateProvider, $urlRouterProvider,
         }
       }
     })
+
     .state('volumio.plugin', {
       url: 'plugin/:pluginName',
       params: {isPluginSettings: null},
@@ -139,9 +166,41 @@ function routerConfig ($stateProvider, $urlRouterProvider,
           controllerAs: 'staticPage'
         }
       }
+    })
+
+
+    .state('volumio.redirect', {
+      url: 'redirect',
+      views: {
+        'content@volumio': {
+          template: '',
+          controller: function($state, uiSettingsService) {
+            uiSettingsService.initService().then(data => {
+              if (data && data.indexState) {
+                $state.go(`volumio.${data.indexState}`);
+              } else {
+                $state.go('volumio.playback');
+              }
+            });
+          },
+          controllerAs: 'redirect'
+        }
+      }
+    })
+
+    .state('volumio.wizard', {
+      url: 'wizard',
+      views: {
+        'content@volumio': {
+          templateUrl: 'app/wizard/wizard.html',
+          controller: 'WizardController',
+          controllerAs: 'wizard'
+        }
+      }
     });
 
-  $urlRouterProvider.otherwise('/playback');
+
+  $urlRouterProvider.otherwise('/redirect');
 }
 
 export default routerConfig;

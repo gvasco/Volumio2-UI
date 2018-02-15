@@ -52,80 +52,20 @@ class TrackManagerDirective {
 
 class TrackManagerController {
   constructor(
-      $element,
-      playerService,
-      playlistService,
-      $timeout,
-      modalService,
-      matchmedia,
-      socketService,
-      $scope,
-      knobFgColor,
-      knobBgColor,
-      matchmediaService,
-      $log) {
+      $element, playerService, $timeout, modalService, matchmedia, socketService, $scope, themeManager,
+      matchmediaService, $log, uiSettingsService) {
     'ngInject';
     this.playerService = playerService;
-    this.playlistService = playlistService;
     this.modalService = modalService;
     this.socketService = socketService;
     this.matchmediaService = matchmediaService;
+    this.themeManager = themeManager;
+    this.$timeout = $timeout;
+    this.uiSettingsService = uiSettingsService;
     this.$scope = $scope;
     this.$log = $log;
 
     this.initWatchers();
-    // this.initMatchmedia();
-
-    if (this.type === 'knob') {
-      this.knobOptions = {
-        min: 0,
-        max: 1001,
-        fgColor: knobFgColor,
-        bgColor: knobBgColor,
-        width: 210,
-        height: 210,
-        displayInput: false,
-        step: 1,
-        angleOffset: 0,
-        angleArc: 360
-      };
-
-      this.onChange = (value) => {
-        $timeout.cancel(this.timeoutHandler);
-        this.timeoutHandler = $timeout(() => {
-          this.$log.debug('track manager', value);
-          this.playerService.stopSeek();
-          this.playerService.seek = value;
-        }, 200, false);
-      };
-    }
-  }
-
-  toggleFavouriteTrack() {
-    if (this.playerService.favourite.favourite) {
-      this.$log.debug('Remove from favourite');
-      this.playlistService.removeFromFavourites(this.playerService.state);
-    } else {
-      this.$log.debug('Add to favourite');
-      this.playlistService.addToFavourites(this.playerService.state);
-    }
-  }
-
-  addToPlaylist() {
-    if (this.playerService.state.trackType !== 'webradio') {
-      let
-      templateUrl = 'app/browse/components/modal/modal-playlist.html',
-      controller = 'ModalPlaylistController',
-      params = {
-        title: 'Add to playlist',
-        item: this.playerService.state
-      };
-      this.modalService.openModal(
-        controller,
-        templateUrl,
-        params,
-        'sm');
-    }
   }
 
   initWatchers() {
@@ -143,6 +83,7 @@ class TrackManagerController {
     });
 
     this.$scope.$watch(() => this.matchmediaService.isPhone, (newVal) => {
+      console.info(this.matchmediaService.isPhone);
       if (this.matchmediaService.isPhone) {
         let albumart = this.playerService.state && this.playerService.state.albumart;
         if (albumart) {
@@ -154,40 +95,39 @@ class TrackManagerController {
       } else {
         this.backgroundAlbumArtStyle = {};
       }
+      this._initKnob(this.matchmediaService.isPhone);
     });
   }
 
-  trackActions() {
-    if (!this.playerService.state.title && !this.playerService.album && !this.playerService.artist) {
-      return false;
+  _initKnob(isPhone) {
+    if (this.type !== 'knob') {
+      return;
     }
-    let templateUrl = 'app/components/track-manager/components/modals/modal-track-manager-actions.html';
-    let controller = 'ModalTrackManagerActionsController';
-    this.modalService.openModal(
-      controller,
-      templateUrl,
-      null,
-      'sm',
-      true
-    );
+    this.knobOptions = {
+      min: 0,
+      max: 1001,
+      fgColor: this.themeManager.getCssValue('color'),
+      bgColor: this.themeManager.getCssValue('backgroundColor'),
+      width: 210,
+      height: 210,
+      displayInput: false,
+      step: 1,
+      angleOffset: 0,
+      angleArc: 360,
+      thickness: ((isPhone) ?
+          this.uiSettingsService.uiSettings.knobThicknessMobile :
+          this.uiSettingsService.uiSettings.knobThicknessDesktop) || 0.2
+    };
+
+    this.onChange = (value) => {
+      this.$timeout.cancel(this.timeoutHandler);
+      this.timeoutHandler = this.$timeout(() => {
+        this.$log.debug('track manager', value);
+        this.playerService.stopSeek();
+        this.playerService.seek = value;
+      }, 200, false);
+    };
   }
-
-  // initMatchmedia() {
-  //   this.matchMediaHandler = this.matchmedia.onPhone((mediaQueryList) => {
-  //     if (mediaQueryList.matches) {
-  //       let albumart = this.playerService.state && this.playerService.state.albumart;
-  //       if (albumart) {
-  //         let albumArtUrl = `url('${this.socketService.host}${albumart}')`;
-  //         this.backgroundAlbumArtStyle = {
-  //           'background-image': albumArtUrl
-  //         };
-  //       }
-  //     } else {
-  //       this.backgroundAlbumArtStyle = {};
-  //     }
-  //   });
-  // }
 }
-
 
 export default TrackManagerDirective;

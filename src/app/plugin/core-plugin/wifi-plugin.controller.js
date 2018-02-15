@@ -1,7 +1,8 @@
 class WifiPluginController {
-  constructor($scope, socketService, mockService, $log, $translate) {
+  constructor($rootScope, $scope, socketService, mockService, $log, $translate, themeManager) {
     'ngInject';
     this.socketService = socketService;
+    this.$rootScope = $rootScope;
     this.$scope = $scope;
     this.$log = $log;
     this.$translate = $translate;
@@ -42,6 +43,18 @@ class WifiPluginController {
     this.socketService.emit('saveWirelessNetworkSettings', saveWiFi);
   }
 
+  connectToWifiWizard(wifi, index) {
+    let saveWiFi = {
+      ssid: wifi.ssid,
+      security: wifi.security.label || wifi.security,
+      password: wifi.password,
+      hidden: wifi.hidden
+    };
+    this.wirelessNetworks.available[index].insertPassword = undefined;
+    this.$log.debug('connect to', wifi, saveWiFi);
+    this.socketService.emit('connectWirelessNetworkWizard', saveWiFi);
+  }
+
   cancelConnectToWifi(wifi) {
     wifi.insertPassword = undefined;
   }
@@ -64,10 +77,24 @@ class WifiPluginController {
         signal: -1,
         ssidHidden: true
       });
+      this.wirelessNetworks.available.map((network) => {
+        if (!network.security || network.security === '') {
+          network.security = this.securityTypes[0];
+          network.hotSpot = true;
+        }
+      });
+    });
+    this.socketService.on('pushWizardWirelessConnResults', (data) => {
+      this.$log.debug('pushWizardWirelessConnResults', data);
+      this.wirelessNetworks = '';
+      this.WirelessConnResults = data;
     });
     this.$scope.$on('$destroy', () => {
       this.socketService.off('pushWirelessNetworks');
+      this.socketService.off('pushWizardWirelessConnResults');
     });
+    this.socketService.on('pushWirelessNetworks', (data) => {
+      });
   }
 
   initService() {

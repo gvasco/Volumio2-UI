@@ -14,7 +14,7 @@
         <td class="wifiIcon">
           <img
               ng-if="::wifiPlugin.wirelessNetworks.connectedTo.signal >= 0"
-              ng-src="{{assetsUrl + '/wifi-icons/' + wifiPlugin.wirelessNetworks.connectedTo.signal + '.png'}}" alt="signal-{{wifi.signal}}" />
+              ng-src="{{wifiPlugin.$rootScope.assetsUrl + '/wifi-icons/' + wifiPlugin.wirelessNetworks.connectedTo.signal + '.png'}}" alt="signal-{{wifi.signal}}" />
         </td>
         <td class="lockIcon">
           <span ng-if="::wifi.security">
@@ -39,17 +39,17 @@
       <tr
           ng-if="::wifiPlugin.wirelessNetworks.available.length > 0"
           ng-click="wifiPlugin.insertPassword($index)"
-          ng-repeat-start="wifi in ::wifiPlugin.wirelessNetworks.available track by $index">
+          ng-repeat-start="wifi in wifiPlugin.wirelessNetworks.available track by $index">
         <td class="wifiIcon">
           <img
               ng-if="::wifi.signal >= 0"
-              ng-src="{{assetsUrl + '/wifi-icons/' + wifi.signal + '.png'}}" alt="signal-{{wifi.signal}}" />
+              ng-src="{{wifiPlugin.$rootScope.assetsUrl + '/wifi-icons/' + wifi.signal + '.png'}}" alt="signal-{{wifi.signal}}" />
           <i ng-if="::wifi.signal < 0" class="fa fa-eye-slash"></i>
         </td>
         <td class="lockIcon">
-          <span ng-if="::wifi.security">
-            <i ng-if="::wifi.security == 'open'" class="fa fa-unlock" title="{{'NETWORK.OPEN_NETWORK' | translate}}"></i>
-            <i ng-if="::wifi.security !== 'open'" class="fa fa-lock" title="{{'NETWORK.SECURE_NETWORK' | translate}}"></i>
+          <span>
+            <i ng-if="wifi.security === 'open' || wifi.security.label === 'open'" class="fa fa-unlock" title="{{'NETWORK.OPEN_NETWORK' | translate}}"></i>
+            <i ng-if="wifi.security !== 'open' && wifi.security.label !== 'open'" class="fa fa-lock" title="{{'NETWORK.SECURE_NETWORK' | translate}}"></i>
           </span>
         </td>
         <td>
@@ -60,7 +60,7 @@
           <button ng-if="::!wifi.insertPassword"
               type="button"
               class="btn btn-info">
-            <i class="fa fa-link"></i>
+            <i class="fa fa-level-down fa-rotate-90"></i>
             <span class="hidden-xs" translate="NETWORK.CONNECT"></span>
           </button>
         </td>
@@ -74,9 +74,9 @@
             <span translate="COMMON.HIDDEN"></span> &nbsp;|&nbsp;
           </span>
 
-          <span translate="NETWORK.SECURITY" ng-if="::wifi.ssidHidden"></span>
+          <span translate="NETWORK.SECURITY" ng-if="::wifi.ssidHidden || wifi.hotSpot"></span> &nbsp;
 
-          <div class="securitySelectWrapper" ng-if="::wifi.ssidHidden">
+          <div class="securitySelectWrapper" ng-if="::wifi.ssidHidden || wifi.hotSpot">
             <ui-select
                 ng-model="wifi.security"
                 search-enabled="false"
@@ -114,7 +114,7 @@
               ng-click="wifiPlugin.connectToWifi(wifi, $index)"
               type="button"
               name="btn btn-info">
-              <i class="fa fa-link"></i>
+              <i class="fa fa-level-down fa-rotate-90"></i>
               <span class="hidden-xs" translate="NETWORK.CONNECT"></span>
           </button>
 
@@ -130,8 +130,7 @@
       </tr>
     </table>
 
-    <br/>
-    <button type="button" class="btn btn-info" ng-click="wifiPlugin.refreshWifiNetworks()">
+    <button type="button" class="btn btn-info refreshWiFiNetworks" ng-click="wifiPlugin.refreshWifiNetworks()">
       <i class="fa fa-refresh" title="{{'NETWORK.REFRESH' | translate}}"></i>
       <span translate="NETWORK.REFRESH"></span>
     </button>

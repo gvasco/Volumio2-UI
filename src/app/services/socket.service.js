@@ -7,6 +7,7 @@ class SocketService {
     this.$log = $log;
 
     this._host = null;
+    this.hosts = {};
   }
 
   changeHost(host) {
@@ -14,9 +15,32 @@ class SocketService {
       this.$window.socket.disconnect();
       this.$window.socket.removeAllListeners();
     }
-    this.$window.socket = io(this.host);
+    this.$window.socket = io(this.host, {timeout: 500});
     this.$window.socket.connect();
+    this.$window.socket.on('connect_error', () => {
+      this.$log.debug(`Socket connect_error for host ${this.host}`);
+      this._connectToNextHost();
+    });
+    this.$window.socket.on('connect_timeout', () => {
+      this.$log.debug(`Socket connect_timeout for host ${this.host}`);
+      this._connectToNextHost();
+    });
     this.$rootScope.$emit('socket:init');
+  }
+
+  _connectToNextHost() {
+    const hostKeys = Object.keys(this.hosts);
+    if (hostKeys.length > 1) {
+      let currentHostIndex = hostKeys.findIndex(host => {
+        return this.hosts[host] === this.host;
+      });
+      if (++currentHostIndex >= hostKeys.length) {
+        currentHostIndex = 0;
+      }
+      const newHost = this.hosts[hostKeys[currentHostIndex]];
+      this.$log.info(`Try to connect to host: ${hostKeys[currentHostIndex]}: ${newHost}`);
+      this.host = newHost;
+    }
   }
 
   get isConnected() {
@@ -58,7 +82,7 @@ class SocketService {
 
   connect(callback) {
     this.$window.socket.on('connect', () => {
-      this.$log.debug('Socket connect');
+      this.$log.debug(`Socket connected to ${this.host}`);
       callback();
     });
   }
@@ -81,11 +105,11 @@ class SocketService {
   set host(host) {
     this._host = host;
     this.changeHost(host);
-    this.$log.debug('New host:', this._host);
+    this.$log.debug(`New host: ${this._host}`);
   }
 
   get host() {
-    return `${this._host}`;
+    return this._host;
   }
 }
 

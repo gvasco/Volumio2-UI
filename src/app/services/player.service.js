@@ -1,11 +1,13 @@
 class PlayerService {
-  constructor($rootScope, $log, $interval, socketService, themeManager) {
+  constructor($rootScope, $log, $interval, socketService, themeManager, uiSettingsService, $document) {
     'ngInject';
     this.$log = $log;
     this.$interval = $interval;
     this.socketService = socketService;
     this.themeManager = themeManager;
     this.$rootScope = $rootScope;
+    this.uiSettingsService = uiSettingsService;
+    this.$document = $document;
 
     this.state = null;
     this.trackInfo = null;
@@ -24,6 +26,9 @@ class PlayerService {
     this._shuffle = false;
     this._repeatTrack = false;
     this._repeatAlbum = false;
+
+    this.localVolume = 0;
+    this.lastVolumeUpdateTime = -1000;
 
     this.init();
     $rootScope.$on('socket:init', () => {
@@ -137,13 +142,10 @@ class PlayerService {
       hours = momentDuration.hours(),
       minutes = momentDuration.minutes(),
       seconds = momentDuration.seconds();
-    if (this.hours > 0) {
-      this.elapsedTimeString = hours + ':' + minutes + ':' +
-        ((seconds < 10) ? ('0' + seconds) : seconds);
-    } else {
-      this.elapsedTimeString = minutes + ':' +
-        ((seconds < 10) ? ('0' + seconds) : seconds);
-    }
+    // Track length is shown as mm:ss - do the same for elapsed time
+    minutes += hours*60;
+    this.elapsedTimeString = minutes + ':' +
+                             ((seconds < 10) ? ('0' + seconds) : seconds);
   }
 
   startSeek() {
@@ -171,7 +173,7 @@ class PlayerService {
 
 
     // GETTER & SETTER ---------------------------------------------------------
-  get volume() {
+  get remoteVolume() {
     if (this.state) {
       return parseInt(this.state.volume);
     } else {
@@ -179,10 +181,7 @@ class PlayerService {
     }
   }
 
-  set volume(volume) {
-    if (this.state.mute) {
-      volume += this.lastVolume;
-    }
+  set remoteVolume(volume) {
     if (volume < 0) {
       volume = 0;
     } else if (volume > 100) {
@@ -190,6 +189,21 @@ class PlayerService {
     }
     this.$log.log('volume', volume);
     this.socketService.emit('volume', volume);
+  }
+
+  get volume(){
+    if(Date.now() - this.lastVolumeUpdateTime > 1000){
+      this.localVolume = this.remoteVolume;
+    }
+    return this.localVolume;
+  }
+
+  set volume(volume){
+    if(Date.now() - this.lastVolumeUpdateTime > 100 && this.localVolume !== volume){
+      this.lastVolumeUpdateTime = Date.now();
+      this.remoteVolume = volume;
+    }
+    this.localVolume = volume;
   }
 
   get albumart() {
@@ -217,27 +231,30 @@ class PlayerService {
   }
 
   updatePageTitle() {
-    let pageTitle = '';
-    if (this.state.artist) {
-      pageTitle = this.state.artist;
+    this.pageTitle = '';
+    if (this.state.status !== 'play' || (!this.state.artist && !this.state.title)) {
+        this.pageTitle = this.uiSettingsService.defaultPageTitle;
+    } else {
+      if (this.state.artist) {
+        this.pageTitle = this.state.artist;
+      }
+      if (this.state.title) {
+        this.pageTitle += (this.pageTitle) ? ` - ${this.state.title}` : this.state.title;
+      }
     }
-    if (this.state.title) {
-      pageTitle += (pageTitle) ? ` - ${this.state.title}` : this.state.title;
+    if (this.pageTitle) {
+      this.$document[0].title = this.pageTitle;
     }
-    if (!this.state.artist && !this.state.title) {
-      pageTitle = this.themeManager.defaultPageTitle;
-    }
-    this.$rootScope.pageTitle = pageTitle;
   }
 
   updateFavicon() {
     if (this.themeManager.theme === 'volumio') {
       if (this.state.status === 'play') {
-        this.$rootScope.favicon = 'app/themes/' + this.themeManager.theme + '/assets/favicon-play.png';
+        this.$rootScope.favicon = `${this.$rootScope.variantAssetsUrl}/favicons/favicon-play.png`;
       } else if (this.state.status === 'pause') {
-        this.$rootScope.favicon = 'app/themes/' + this.themeManager.theme + '/assets/favicon-pause.png';
+        this.$rootScope.favicon = `${this.$rootScope.variantAssetsUrl}/favicons/favicon-pause.png`;
       } else {
-        this.$rootScope.favicon = 'app/themes/' + this.themeManager.theme + '/assets/favicon.png';
+        this.$rootScope.favicon = `${this.$rootScope.variantAssetsUrl}/favicons/favicon.png`;
       }
     }
   }
@@ -288,6 +305,10 @@ class PlayerService {
         case 'spotify':
         case 'wav':
         case 'wawpack':
+        case 'airplay':
+        case 'YouTube':
+        case 'rr':
+        case 'bt':
         case 'wma':
           this.state.fileFormat = {
             url: this.state.trackType,
@@ -307,9 +328,7 @@ class PlayerService {
       this.$log.debug('pushState', data);
       this.state = data;
 
-      if (!this.state.mute && this.state.volume) {
-        this.lastVolume = this.state.volume;
-      }
+      this.state.disableUi = this.state.service === 'airplay' || this.state.service === 'analogin';
 
       this.elapsedTime = this.state.seek;
       if (this.state.status === 'play') {
@@ -333,7 +352,7 @@ class PlayerService {
       }
 
       //Forward emit event
-      this.$rootScope.$broadcast('socket:pushState', data);
+      this.$rootScope.$broadcast('socket:pushState', this.state);
 
       this.updatePageTitle();
       this.updateFavicon();

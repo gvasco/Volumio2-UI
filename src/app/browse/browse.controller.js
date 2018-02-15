@@ -1,6 +1,7 @@
 class BrowseController {
   constructor($scope, browseService, playQueueService, playlistService, socketService,
-      modalService, $timeout, matchmediaService, $compile, $document, $rootScope, $log, $translate, playerService) {
+      modalService, $timeout, matchmediaService, $compile, $document, $rootScope, $log, playerService,
+      uiSettingsService) {
     'ngInject';
     this.$log = $log;
     this.browseService = browseService;
@@ -15,9 +16,11 @@ class BrowseController {
     this.$document = $document;
     this.$scope = $scope;
     this.$rootScope = $rootScope;
-    this.$translate = $translate;
+    this.uiSettingsService = uiSettingsService;
 
-    this.renderBrowseTable();
+    if (this.browseService.isBrowsing || this.browseService.isSearching) {
+      this.renderBrowseTable();
+    }
     $scope.$on('browseService:fetchEnd', () => {
       this.renderBrowseTable();
     });
@@ -64,25 +67,21 @@ class BrowseController {
   }
 
   clickListItem(item) {
-    if (item.type !== 'song' && item.type !== 'webradio' && item.type !== 'mywebradio' && item.type !== 'cuesong') {
+    if (item.type !== 'song' && item.type !== 'webradio' && item.type !== 'mywebradio' && item.type !== 'cuesong' && item.type !== 'album' && item.type !== 'artist' && item.type !== 'cd' && item.type !== 'play-playlist') {
       this.fetchLibrary(item);
+    } else if (item.type === 'song' || item.type === 'webradio' || item.type === 'mywebradio' || item.type === 'album' || item.type === 'artist') {
+      this.play(item);
+    } else if (item.type === 'cuesong') {
+      this.playQueueService.addPlayCue(item);
+    } else if (item.type === 'cd') {
+      this.playQueueService.replaceAndPlay(item);
+    } else if ( item.type === 'play-playlist') {
+      this.playQueueService.playPlaylist({title: item.name});
     }
   }
   clickListItemByIndex(listIndex, itemIndex) {
     let item = this.browseService.lists[listIndex].items[itemIndex];
     this.clickListItem(item);
-  }
-
-  dblClickListItem(item) {
-    if (item.type === 'song' || item.type === 'webradio' || item.type === 'mywebradio') {
-      this.play(item);
-    } else if (item.type === 'cuesong') {
-      this.playQueueService.addPlayCue(item);
-    }
-  }
-  dblClickListItemByIndex(listIndex, itemIndex) {
-    let item = this.browseService.lists[listIndex].items[itemIndex];
-    this.dblClickListItem(item);
   }
 
   hamburgerMenuClick(button, listIndex, itemIndex) {
@@ -146,6 +145,14 @@ class BrowseController {
     this.addWebRadio(item);
   }
 
+  safeRemoveDrive(item) {
+    this.socketService.emit('safeRemoveDrive', item);
+  }
+
+  updateFolder(item) {
+    this.socketService.emit('updateDb', item);
+  }
+
   search() {
     if (this.searchField.length >= 3) {
       this.browseService.isSearching = true;
@@ -155,7 +162,11 @@ class BrowseController {
       this.searchTimeoutHandler = this.$timeout(() => {
         let emitPayload = {
           type: this.browseService.filterBy,
-          value: this.searchField
+          value: this.searchField,
+          plugin_name: this.browseService.currentFetchRequest.plugin_name,
+          plugin_type: this.browseService.currentFetchRequest.plugin_type,
+          uri: this.browseService.currentFetchRequest.uri,
+          service: this.browseService.currentFetchRequest.service
         };
         this.$log.debug('search', emitPayload);
         this.socketService.emit('search', emitPayload);
@@ -174,17 +185,21 @@ class BrowseController {
   showPlayButton(item) {
     let ret = item.type === 'folder' || item.type === 'song' ||
         item.type === 'mywebradio' || item.type === 'webradio' ||
-        item.type === 'playlist' || item.type === 'cuesong';
+        item.type === 'playlist' || item.type === 'cuesong' ||
+        item.type === 'remdisk' || item.type === 'cuefile' ||
+        item.type === 'folder-with-favourites';
     return ret;
   }
   showAddToQueueButton(item) {
     let ret = item.type === 'folder' || item.type === 'song' ||
         item.type === 'mywebradio' || item.type === 'webradio' ||
-        item.type === 'playlist';
+        item.type === 'playlist' || item.type === 'remdisk' ||
+        item.type === 'cuefile' || item.type === 'folder-with-favourites';
     return ret;
   }
   showAddToPlaylist(item) {
-    let ret = item.type === 'folder' || item.type === 'song';
+    let ret = item.type === 'folder' || item.type === 'song' ||
+    item.type === 'remdisk' || item.type === 'folder-with-favourites';
     return ret;
   }
 
@@ -198,10 +213,60 @@ class BrowseController {
     if (!this.browseService.lists) {
       return false;
     }
+
     this.$timeout(() => {
       let angularThis = `angular.element('#browseTablesWrapper').scope().browse`;
+      var item=this.browseService.info;
 
       this.table = '';
+
+      if(this.browseService.info) {
+        this.table += `<div class="rowInfo">`;
+        this.table += `<div class="imageInfo">`;
+        if (!this.browseService.info.icon && this.browseService.info.albumart) {
+          this.table += `
+          <img src="${this.playerService.getAlbumart(this.browseService.info.albumart)}" alt=""/>`;
+        }
+
+        if (this.browseService.info.icon) {
+          // this.table += `<img src="https://upload.wikimedia.org/wikipedia/en/thumb/8/8b/PearlJam1.jpg/220px-PearlJam1.jpg"/>`;
+          this.table += `<i class="${this.browseService.info.icon}"></i>`;
+        }
+                this.table += `</div>`;
+        this.table += `
+          <div class="infoButton">
+            <div class="hamburgerMenu">
+              <button class="dropdownToggle btn-link"
+                  onclick="${angularThis}.clickListItem(${angularThis}.browseService.info)"
+                  title="Play">
+                <i class="fa fa-play"></i>
+              </button>
+            </div>
+          </div>`;
+          if (this.browseService.info.title) {
+            this.table += `<div class="description breakMe">
+            <div class="info-title">
+              ${(this.browseService.info.title) ? this.browseService.info.title : ''}
+            </div>
+            </div>`;
+
+          } else {
+            this.table += `
+              <div class="description breakMe">
+                <div class="album-title">
+                  ${(this.browseService.info.album) ? this.browseService.info.album : ''}
+                </div>
+                <div class="album-artist">
+                  ${(this.browseService.info.artist) ? this.browseService.info.artist : ''}
+                </div>
+                <div class="album-time ${(this.browseService.info.duration || this.browseService.info.year) ? '' : 'onlyTitle'}">
+                  ${(this.browseService.info.duration) ? this.browseService.info.duration : ''} ${(this.browseService.info.year) ? '- ' + this.browseService.info.year : ''}
+                </div>
+              </div>`;
+          }
+          this.table += `</div></div>`;
+
+      }
       this.browseService.lists.forEach((list, listIndex) => {
         //Print title
         if (list.title) {
@@ -215,13 +280,12 @@ class BrowseController {
         list.items.forEach((item, itemIndex) => {
           //Print items
           this.table += `<div class="itemWrapper"><div class="itemTab">`;
-
-          this.table += `<div class="image"
-              onclick="${angularThis}.clickListItemByIndex(${listIndex}, ${itemIndex})"
-              ondblclick="${angularThis}.dblClickListItemByIndex(${listIndex}, ${itemIndex})">`;
+          if (item.icon || item.albumart) {
+          this.table += `<div class="image" id="${item.active ? 'source-active': ''}"
+              onclick="${angularThis}.clickListItemByIndex(${listIndex}, ${itemIndex})">`;
           if (!item.icon && item.albumart) {
             this.table += `
-            <img src="${this.playerService.getAlbumart(item.albumart)}" alt="${item.title}"/>`;
+            <img src="${this.playerService.getAlbumart(item.albumart)}" alt=""/>`;
           }
 
           if (item.icon) {
@@ -229,11 +293,12 @@ class BrowseController {
             this.table += `<i class="${item.icon}"></i>`;
           }
           this.table += `</div>`;
-
+          }
           this.table += `
             <div class="commandButtons">
               <div class="hamburgerMenu
-                  ${(item.type === 'radio-favourites' || item.type === 'radio-category' || item.type === 'title') ?
+                  ${(item.type === 'radio-favourites' || item.type === 'radio-category' || item.type === 'title' ||
+                      item.type === 'streaming-category' || item.type === 'item-no-menu') ?
                       'hidden' : ''}">
                 <button class="dropdownToggle btn-link"
                     onclick="${angularThis}.hamburgerMenuClick(this, ${listIndex}, ${itemIndex}, event)"
@@ -245,13 +310,12 @@ class BrowseController {
 
           this.table += `
             <div class="description breakMe"
-                onclick="${angularThis}.clickListItemByIndex(${listIndex}, ${itemIndex})"
-                ondblclick="${angularThis}.dblClickListItemByIndex(${listIndex}, ${itemIndex})">
+                onclick="${angularThis}.clickListItemByIndex(${listIndex}, ${itemIndex})">
               <div class="title ${(item.artist || item.album) ? '' : 'onlyTitle'}">
                 ${(item.title) ? item.title : ''}
               </div>
               <div class="artist-album ${(item.artist || item.album) ? '' : 'onlyTitle'}">
-                ${(item.artist) ? item.artist : ''} ${(item.album) ? '-' + item.album : ''}
+                ${(item.artist) ? item.artist : ''} ${(item.album) ? '- ' + item.album : ''}
               </div>
             </div>`;
 
@@ -269,7 +333,7 @@ class BrowseController {
         browseTable.style.display = 'block';
         this.applyGridStyle();
         this.$rootScope.$broadcast('browseController:listRendered');
-      }, 10, false);
+      }, 50, false);
     }, 0);
   }
 

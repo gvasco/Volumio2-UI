@@ -1,5 +1,6 @@
 class ModalTrackManagerActionsController {
-  constructor($uibModalInstance, dataObj, playerService, $state, socketService, $log, $timeout, browseService, $translate) {
+  constructor($uibModalInstance, dataObj, playerService, $state, socketService, $log, $timeout, browseService,
+      $translate, uiSettingsService) {
     'ngInject';
 
     this.$log = $log;
@@ -11,13 +12,16 @@ class ModalTrackManagerActionsController {
     this.$timeout = $timeout;
     this.browseService = browseService;
     this.$translate = $translate;
+    this.uiSettingsService = uiSettingsService;
   }
 
   goTo(type) {
     this.$state.go('volumio.browse');
     let emitPayload = {
       type: type,
-      value: this.playerService.state[type]
+      value: this.playerService.state[type],
+      artist: this.playerService.state.artist,
+      album: this.playerService.state.album
     };
     this.browseService.goTo(emitPayload);
     this.closeModal();

@@ -1,5 +1,6 @@
 class NetworkDrivesPluginController {
-  constructor($scope, socketService, modalService, mockService, toastMessageService, $log, $translate) {
+  constructor($scope, socketService, modalService, mockService, toastMessageService, $log, $filter,
+      matchmediaService) {
     'ngInject';
     this.drive = {};
     this.socketService = socketService;
@@ -7,10 +8,11 @@ class NetworkDrivesPluginController {
     this.toastMessageService = toastMessageService;
     this.$scope = $scope;
     this.$log = $log;
-    this.$translate = $translate;
-    // this.infoShare = mockService.get('infoShare');
-    // this.listUsbDrives = mockService.get('listUsbDrives');
-    // this.networkShares = mockService.get('networkSharesDiscovery');
+    this.$filter = $filter;
+    //this.infoShare = mockService.get('infoShare');
+    //this.listUsbDrives = mockService.get('listUsbDrives');
+    //this.networkShares = mockService.get('networkSharesDiscovery');
+    this.matchmediaService = matchmediaService;
 
     this.passwordInputType = 'password';
     this.inAddDrive = false;
@@ -55,11 +57,17 @@ class NetworkDrivesPluginController {
   }
 
   deleteDrive(drive) {
+    const modalTitle = this.$filter('translate')('NETWORKFS.DELETE_DRIVE');
+    const modalMessage =
+        `${this.$filter('translate')('NETWORKFS.DELETE_DRIVE_CONFIRM')} ${drive.name}?`;
     let modalPromise = this.modalService.openModal(
       'ModalConfirmController',
       'app/components/modals/modal-confirm.html',
-      {title: 'Delete drive', message: 'Do you want to delete "' + drive.name + '"?'});
-    modalPromise.then((yes) => {
+      {
+        title: modalTitle,
+        message: modalMessage
+      });
+    modalPromise.result.then((yes) => {
       this.$log.debug('deleteShare', {id: drive.name});
       this.socketService.emit('deleteShare', {id: drive.id});
     }, () => {});
@@ -91,7 +99,7 @@ class NetworkDrivesPluginController {
   registerListner() {
     this.socketService.on('pushListShares', (data) => {
       this.$log.debug('infoShare', data);
-      this.infoShare = data;
+       this.infoShare = data;
     });
 
     this.socketService.on('pushListUsbDrives', (data) => {
@@ -135,7 +143,7 @@ class NetworkDrivesPluginController {
         'ModalNetwordDrivesPasswordController',
         'app/plugin/core-plugin/modals/modal-network-drive-password.html',
         data);
-      modalPromise.then((obj) => {
+      modalPromise.result.then((obj) => {
         this.drive = angular.extend(this.drive, obj);
         this.$log.debug('updateSharePw', this.drive);
         this.socketService.emit('editShare', this.drive);

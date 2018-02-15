@@ -1,3 +1,4 @@
+<div class="volumeSliderScrim" ng-if="volumeManager.showVerticalSlider" ng-click="volumeManager.toggleVolumeSlider()"></div>
 <div ng-if="!volumeManager.matchmediaService.isPhone" class="volumeManager">
   <div class="knobWrapper">
     <div class="knobInfosWrapper">
@@ -24,8 +25,6 @@
         ng-class="{selected: volumeManager.playerService.state.mute}"
         title="{{'COMMON.VOLUME_MUTE' | translate}}">
         <i class="fa fa-volume-off"></i>
-      <span ng-if="volumeManager.playerService.state.mute"></span>
-      <span ng-if="!volumeManager.playerService.state.mute"></span>
     </button>
     <button ng-click="volumeManager.playerService.volumeUp()" class="btn btn-link" title="{{'COMMON.VOLUME_UP' | translate}}">
       <i class="fa fa-volume-up"></i>
@@ -60,7 +59,7 @@
   </div>
   <button
       id="openVolumeVerticalSlider"
-      ng-click="volumeManager.showVerticalSlider = !volumeManager.showVerticalSlider"
+      ng-click="volumeManager.toggleVolumeSlider()"
       class="btn btn-link">
     <i class="fa fa-volume-up"></i>
   </button>

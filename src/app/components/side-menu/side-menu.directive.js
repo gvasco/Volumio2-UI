@@ -14,8 +14,8 @@ class SideMenuDirective {
 }
 
 class SideMenuController {
-  constructor($scope, $rootScope, socketService, mockService,
-      $state, modalService, playerService, themeManager, $log, $http, $window) {
+  constructor($scope, $rootScope, socketService, mockService, $state, modalService, playerService, themeManager, $log, 
+      $http, $window, uiSettingsService) {
     'ngInject';
     this.$state = $state;
     this.$window = $window;
@@ -23,9 +23,10 @@ class SideMenuController {
     this.modalService = modalService;
     this.playerService = playerService;
     this.visible = false;
-    this.theme = themeManager.theme;
+    this.themeManager = themeManager;
     this.$log = $log;
     this.$scope = $scope;
+    this.uiSettingsService = uiSettingsService;
     // this.menuItems = mockService.get('getMenuItems');
 
     this.init();
@@ -44,9 +45,15 @@ class SideMenuController {
     });
   }
 
+  toggleBluetooth() {
+    this.socketService.emit('callMethod', {
+      endpoint: 'audio_interface/bluetooth',
+      method: 'BTpress'
+    });
+  }
+
   toggleMenu() {
     this.visible = !this.visible;
-    this.analogIn = this.playerService.state.service === 'analogin';
   }
 
   itemClick(item) {
@@ -88,6 +95,16 @@ class SideMenuController {
   init() {
     this.registerListner();
     this.initService();
+    this.watcherHandler = this.$scope.$watch(
+      () =>
+        this.playerService &&
+        this.playerService.state &&
+        this.playerService.state.service, (val) => {
+      if (val) {
+        this.analogIn = this.playerService.state.service === 'analogin';
+        this.bluetooth = this.playerService.state.service === 'bluetoth';
+      }
+    });
   }
 
   registerListner() {

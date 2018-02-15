@@ -6,3 +6,27 @@
   left: 0px;
   z-index: 1;
 }
+
+.hardwareToggleCheckbox {
+  margin: 15px 0px 0px 8px;
+  text-align: left;
+  input[type="checkbox"] {
+    display: inline-block;
+    width: auto;
+  }
+  &:last-child {
+    margin-bottom: 15px;
+  }
+}
+.side-logo {
+  text-align: center;
+  margin: 15px 0px;
+  img {
+    width: 80%;
+  }
+}
+
+#sideMenu {
+  position: relative;
+  z-index: 1;
+}

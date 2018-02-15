@@ -21,6 +21,8 @@ class BrowseService {
     // this.$log.debug(this._sources);
     // this.list = mockService.get('getBrowseList').list;
     this.limiter = 10;
+    this.currentFetchRequest = {};
+    this.historyUri = [];
     this.scrollPositions = new Map();
 
     this.init();
@@ -37,20 +39,42 @@ class BrowseService {
       this.backHome();
       return false;
     }
+
     let obj = {uri: item.uri};
-    this.$log.debug('fetchLibrary', item);
+    if (!back) {
+      if  (this.historyUri.length) {
+        obj.prevUri = this.historyUri[this.historyUri.length - 1].uri;
+      }
+      this.historyUri.push(item);
+    } else {
+      this.historyUri.pop();
+    }
+    this.$log.debug('fetchLibrary', obj);
     this.currentFetchRequest = item;
     this.socketService.emit('browseLibrary', obj);
-    this.isBrowsing = true;
+    if (!item.static) {
+      this.isBrowsing = true;
+    }
     if (!back) {
       this.scrollPositions.delete(item.uri);
     }
+  }
+
+  sendEject(data) {
+    this.socketService.emit('callMethod', data);
+    this.backHome();
+  }
+
+  sendRip(data) {
+    this.socketService.emit('callMethod', data);
   }
 
   backHome() {
     this.isBrowsing = false;
     this.isSearching = false;
     this.lists = [];
+    this.historyUri = [];
+    this.currentFetchRequest = {};
     this.scrollPositions.clear();
   }
 
@@ -161,21 +185,40 @@ class BrowseService {
       this.filters = data;
     });
     this.socketService.on('pushBrowseSources', (data) => {
-      this.$log.debug('pushBrowseSources', data);
       this.availableListViews = ['list'];
+      for (let i = 0; i < data.length; i++) {
+        if (data[i].albumart) {
+          data[i].albumart = this.getSourcesAlbumart(data[i].albumart);
+        }
+      }
       this.sources = data;
+      this.$log.debug('pushBrowseSources', data);
     });
     this.socketService.on('pushBrowseLibrary', (data) => {
       // data = this.mockService.get('getBrowseLibrary');
       if (data.navigation) {
         this.$log.debug('pushBrowseLibrary', data);
         this.lists = data.navigation.lists;
+        this.info = data.navigation.info;
 
         this.breadcrumbs = data.navigation.prev;
+        this.eject = data.navigation.eject;
+        this.rip = data.navigation.rip;
 
         this.$rootScope.$broadcast('browseService:fetchEnd');
       }
     });
+  }
+
+  getSourcesAlbumart(albumart) {
+    if (!albumart) {
+      return '';
+    }
+    if (~albumart.indexOf('http')) {
+      return albumart;
+    } else {
+      return `${this.socketService.host}${albumart}`;
+    }
   }
 
   initService() {

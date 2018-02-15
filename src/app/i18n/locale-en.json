@@ -27,6 +27,7 @@
     "ACTIVE":"Active",
     "INACTIVE":"Inactive",
     "SHOW_SETTINGS":"Show Settings",
+    "SETTINGS":"Settings",
     "TAB_BROWSE":"Browse",
     "TAB_PLAYBACK":"Playback",
     "TAB_QUEUE":"Queue",
@@ -58,7 +59,19 @@
     "VOLUME_UP":"Volume Up",
     "VOLUME_DOWN":"Volume Down",
     "HIDDEN": "Hidden",
-    "LIST": "List"
+    "LIST": "List",
+    "PLAY_QUEUE": "Play queue",
+    "ENTER_PASSWORD": "Enter password",
+    "INVALID_PASSWORD": "Invalid password",
+    "RIP": "RIP",
+    "SKIP": "Skip",
+    "NEXT": "Next",
+    "PREVIOUS": "Previous",
+    "DONE": "Done",
+    "EMAIL": "Email",
+    "SUBSCRIBE_ME": "Subscribe me",
+    "SHARE": "Share",
+    "EJECT": "Eject"
   },
   "BROWSER": {
     "PLAY": "Play",
@@ -79,7 +92,15 @@
     "NEXT_TRACK":"Next Track",
     "PREVIOUS_TRACK":"Previous Track",
     "PAUSE":"Pause",
-    "CLEAR_AND_PLAY": "Clear and play"
+    "CLEAR_AND_PLAY": "Clear and play",
+    "SAFE_REMOVE": "Safe Remove Media",
+    "UPDATE_FOLDER": "Update Folder"
+  },
+  "MY_MUSIC": {
+    "UPDATE": "Update",
+    "UPDATE_DOC": "Update music database entries for any changed, new, or deleted files",
+    "RESCAN": "Rescan",
+    "RESCAN_DOC": "Remake music database entries for all files"
   },
   "PLUGINS": {
     "BACK_TO_PLUGINS": "Back to Plugins",
@@ -98,7 +119,7 @@
     "UPLOAD_PLUGINS":"Upload Plugin"
   },
   "UPDATER": {
-    "DOWNLOAD_SPEED": "Back to Plugins",
+    "DOWNLOAD_SPEED": "Download Speed",
     "TIME_REMAINING": "Time Remaining",
     "UPDATE_NOW": "Update Now"
   },
@@ -160,11 +181,53 @@
     "MANUAL_WIFI_CONNECTION":"Manual WiFi Connection",
     "NETWORK_NAME":"Network Name"
   },
+  "WIZARD": {
+    "LANGUAGE": "Language",
+    "NAME": "Name",
+    "OUTPUT": "Output",
+    "NETWORK": "Network",
+    "MUSIC": "Music",
+    "FOLLOW": "Follow",
+    "DONE": "Done",
+    "WELCOME": "Welcome, let's get started",
+    "SELECT_YOUR_LANGUAGE": "Select your language",
+    "DEVICE_NAME": "Choose a unique name for your device",
+    "DEVICE_ADDRESS": "This device will be available at the address:",
+    "SELECT_YOUR_AUDIO_OUTPUT": "Select your audio output",
+    "SELECT_YOUR_I2S_DAC": "Select your i2s DAC",
+    "I_HAVE_DAC": "I have an I2S DAC",
+    "CUSTOM_AMOUNT": "Custom amount",
+    "DONE_MESSAGE": "Done, your syste is ready",
+    "MAIL_LIST_SUBSCRIPTION": "Mail list subscription",
+    "SOCIAL_SHARE": "Social share",
+    "DONATE": "Donate",
+    "SUBSCRIBED_SUCCESFULLY": "Subscribed successfully",
+    "ADD_YOUR_MUSIC":"To add your music, simply connect a USB Drive or click the button below to add your Network Drive",
+    "STEP":"Step",
+    "VOLUMIOAPPS":"Apps",
+    "GET_APPS":"For your convenience, you can also use our handy apps"
+  },
   "SLEEP": {
     "POWER_OFF": "Power off",
-    "STOP_MUSIC": "Stop music"
+    "STOP_MUSIC": "Stop music",
+    "PRESET_TIMES": "Preset times",
+    "CHOOSE_PRESET": "Choose a preset",
+    "HR": "hr",
+    "MIN": "min",
+    "OFF": "Off"
   },
   "ALARM": {
     "CRATE_PLAYLIST_FIRST": "In order to use Alarm Clock, you must create at least one Playlist first"
+  },
+  "MULTIDEVICE": {
+    "EDIT_GROUPS": "Edit groups",
+    "ROOMS_AND_GROUPS": "Rooms and groups",
+    "MULTI_ROOM_CONFIGURATION": "Multi room configuration",
+    "GROUP": "Group",
+    "NOW_PLAYING": "Now playing"
+  },
+  "SIDEMENU": {
+    "ANALOG_INPUT": "ANALOG INPUT",
+    "BLUETOOTH": "BLUETOOTH"
   }
 }

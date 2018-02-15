@@ -27,6 +27,7 @@ class PlayQueueService {
     this.socketService.emit('addPlay', {
       uri: item.uri,
       title: item.title,
+      albumart: (item.albumart || null),
       service: (item.service || null)
     });
   }
@@ -36,6 +37,7 @@ class PlayQueueService {
     this.socketService.emit('replaceAndPlay', {
       uri: item.uri,
       title: item.title,
+      albumart: (item.albumart || null),
       service: (item.service || null)
     });
   }
@@ -44,7 +46,7 @@ class PlayQueueService {
     this.$log.debug('PlayQueueService replaceAndPlayCue', item);
     this.socketService.emit('replaceAndPlayCue', {
       uri: item.uri,
-      title: item.title,
+      number: item.number,
       service: (item.service || null)
     });
   }
@@ -60,6 +62,7 @@ class PlayQueueService {
     this.socketService.emit('addToQueue', {
       uri: item.uri,
       title: item.title,
+      albumart: (item.albumart || null),
       service: (item.service || null)
     });
   }
@@ -82,11 +85,6 @@ class PlayQueueService {
   remove(index) {
     this.$log.debug('removeFromQueue', index);
     this.socketService.emit('removeFromQueue', {value: index});
-  }
-
-  toggleConsume() {
-    this.$log.debug('setConsume', !this.playerService.state.consume);
-    this.socketService.emit('setConsume', {value: !this.playerService.state.consume});
   }
 
   clearQueue() {
