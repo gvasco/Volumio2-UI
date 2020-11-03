@@ -1,15 +1,15 @@
 class BrowseService {
-  constructor($rootScope, $timeout, $log, socketService, mockService, $interval, $window, localStorageService) {
+  constructor($rootScope, $timeout, $log, socketService, mockService, $interval, $window, localStorageService, uiSettingsService) {
     'ngInject';
     this.$log = $log;
     this.socketService = socketService;
     this.$interval = $interval;
     this.$window = $window;
-    this.isBrowsing = false;
     this.$rootScope = $rootScope;
     this.$log = $log;
     this.$timeout = $timeout;
     this.mockService = mockService;
+    this.uiSettingsService = uiSettingsService;
 
     this.isPhone = false;
     this.filterBy = 'any';
@@ -24,6 +24,9 @@ class BrowseService {
     this.currentFetchRequest = {};
     this.historyUri = [];
     this.scrollPositions = new Map();
+    this.lastBrowseLists = [];
+
+    this.navigationStack = [];
 
     this.init();
     $rootScope.$on('socket:init', () => {
@@ -35,6 +38,7 @@ class BrowseService {
   }
 
   fetchLibrary(item, back) {
+
     if (item.uri === '/') {
       this.backHome();
       return false;
@@ -60,8 +64,46 @@ class BrowseService {
     }
   }
 
+  /*
+    ====== Back functionality for the new navigation stack ======
+  */
+
+  goBack() {
+    const depth = this.navigationStack.length;
+
+
+    if (depth > 1) {
+        this.lists = this.navigationStack[depth - 2].lists;
+        this.lastBrowseLists = this.navigationStack[depth - 2].lists;
+        this.info = this.navigationStack[depth - 2].info;
+
+        this.breadcrumbs = this.navigationStack[depth - 2].prev;
+        this.eject = this.navigationStack[depth - 2].eject;
+        this.rip = this.navigationStack[depth - 2].rip;
+
+        this.navigationStack.pop();
+
+        this.$rootScope.$broadcast('browseService:fetchEnd');
+        this.currentFetchRequest = this.navigationStack[depth - 2];
+
+       /*  window.location.hash = this.navigationStack[depth - 2].uri; */
+
+    } else {
+      this.navigationStack = [];
+      this.backHome();
+      /* window.location.hash = '';
+      this.removeLocationHash(); */
+    }
+  }
+
+  removeLocationHash(){
+      var noHashURL = window.location.href.replace(/#.*$/, '');
+      window.history.replaceState('', document.title, noHashURL);
+  }
+
   sendEject(data) {
     this.socketService.emit('callMethod', data);
+    this.$rootScope.$broadcast('browseService:eject');
     this.backHome();
   }
 
@@ -141,6 +183,9 @@ class BrowseService {
     if (list.availableListViews.length === 1) {
       return list.availableListViews[0] === 'grid';
     }
+    if (this.uiSettingsService.isMemorySavingTouchUiEnabled()) {
+      return false;
+    }
     if (this.showGridView && ~list.availableListViews.indexOf('grid')) {
       return true;
     } else {
@@ -160,6 +205,9 @@ class BrowseService {
 
   get showGridViewSelector() {
     if (!this.lists || this.lists.length === 0) {
+      return false;
+    }
+    if (this.uiSettingsService.isMemorySavingTouchUiEnabled()) {
       return false;
     }
     for (let i = 0; i < this.lists.length; i++) {
@@ -199,15 +247,75 @@ class BrowseService {
       if (data.navigation) {
         this.$log.debug('pushBrowseLibrary', data);
         this.lists = data.navigation.lists;
+        this.lastBrowseLists = data.navigation.lists;
         this.info = data.navigation.info;
 
         this.breadcrumbs = data.navigation.prev;
         this.eject = data.navigation.eject;
         this.rip = data.navigation.rip;
 
+        /*
+          ====== New navigation stack ======
+        */
+
+        /*
+
+        Wee need to find a better way for hash navigation
+
+        window.onhashchange = evt => {
+          const decodedURIHash = decodeURIComponent(window.location.hash);
+          const cleaneDecodedURIHash = decodedURIHash.replace(/^#/, '');
+          const navigationStackItem = this.findHashInNavigationStack(cleaneDecodedURIHash);
+          if (navigationStackItem) {
+            this.goBack();
+            return;
+          }
+        };
+
+        window.location.hash = this.currentFetchRequest.uri;
+
+        */
+
+        this.navigationStack.push({
+          album: this.currentFetchRequest.album || null,
+          albumart: this.currentFetchRequest.albumart || null,
+          artist: this.currentFetchRequest.artist || null,
+          service: this.currentFetchRequest.service || null,
+          title: this.currentFetchRequest.title || null,
+          type: this.currentFetchRequest.type || null,
+          uri: this.currentFetchRequest.uri || null,
+          plugin_name: this.currentFetchRequest.plugin_name || null,
+          plugin_type: this.currentFetchRequest.plugin_type || null,
+          icon: this.currentFetchRequest.icon || null,
+          lists: data.navigation.lists || null,
+          info: data.navigation.info || null,
+          breadcrumbs: data.navigation.prev || null,
+          eject: data.navigation.eject || null,
+          rip: data.navigation.rip || null,
+        });
+
+        this.$log.debug('navigationStack', this.navigationStack);
+        /*
+          ====== New navigation stack ======
+        */
+
         this.$rootScope.$broadcast('browseService:fetchEnd');
       }
     });
+    this.socketService.on('pushActiveDumbInput', (data) => {
+      for (var i in this.lists[0].items) {
+        if (this.lists[0].items[i].title === data) {
+          this.lists[0].items[i].active = true;
+        } else {
+          this.lists[0].items[i].active = false;
+        }
+      }
+      this.$rootScope.$broadcast('browseService:fetchEnd');
+    });
+  }
+
+  findHashInNavigationStack(uri) {
+    return this.navigationStack.find(item => item.uri === uri);
   }
 
   getSourcesAlbumart(albumart) {
@@ -224,7 +332,6 @@ class BrowseService {
   initService() {
     this.socketService.emit('getBrowseFilters');
     this.socketService.emit('getBrowseSources');
-    this._isBrowsing = false;
     this._listBy = 'track';
     //TODO or from sessionStorage
     // this._showGridView = false;

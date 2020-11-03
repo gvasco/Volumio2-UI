@@ -1,11 +1,12 @@
 class WifiPluginController {
-  constructor($rootScope, $scope, socketService, mockService, $log, $translate, themeManager) {
+  constructor($rootScope, $scope, socketService, mockService, $log, $translate, themeManager, uiSettingsService) {
     'ngInject';
     this.socketService = socketService;
     this.$rootScope = $rootScope;
     this.$scope = $scope;
     this.$log = $log;
     this.$translate = $translate;
+    this.uiSettingsService = uiSettingsService;
     //this.wirelessNetworks = mockService.get('wirelessNetworks');
     this.init();
   }
@@ -48,7 +49,8 @@ class WifiPluginController {
       ssid: wifi.ssid,
       security: wifi.security.label || wifi.security,
       password: wifi.password,
-      hidden: wifi.hidden
+      hidden: wifi.hidden,
+      persistentWizard: this.isPersistentWizard()
     };
     this.wirelessNetworks.available[index].insertPassword = undefined;
     this.$log.debug('connect to', wifi, saveWiFi);
@@ -65,18 +67,46 @@ class WifiPluginController {
 
   disconnectFromWiFi() {}
 
+  addManualConnectionEntry(data) {
+    // We need to make sure to add a special field at the end to signal manual connection
+    data.available = data.available.filter(function(value){
+      return !value.manual;
+    });
+    if (!data.available.slice(-1).pop().manual) {
+      data.available.push({
+        security: this.securityTypes[0],
+        signal: -1,
+        ssidHidden: true,
+        manual: true
+      });
+    }
+    return data;
+  }
+
   registerListner() {
     this.socketService.on('pushWirelessNetworks', (data) => {
       this.$log.debug('pushWirelessNetworks', data);
-      this.wirelessNetworks = data;
-      if (!this.wirelessNetworks.available) {
-        this.wirelessNetworks.available = [];
+      if (!this.wirelessNetworks) {
+        this.wirelessNetworks = {'available' : []};
       }
-      this.wirelessNetworks.available.push({
-        security: this.securityTypes[0],
-        signal: -1,
-        ssidHidden: true
+
+      if (!data) {
+        data = {'available' : []};
+      }
+
+      data.available.forEach((network) => {
+        const actualNetwork = this.wirelessNetworks.available.find((n) => {
+          return n.ssid === network.ssid;
+        });
+        if (actualNetwork !== undefined) {
+          actualNetwork.security = network.security;
+          actualNetwork.signal = network.signal;
+        } else {
+          this.wirelessNetworks.available.push(network);
+        }
       });
+      this.wirelessNetworks = this.addManualConnectionEntry(this.wirelessNetworks);
+
       this.wirelessNetworks.available.map((network) => {
         if (!network.security || network.security === '') {
           network.security = this.securityTypes[0];
@@ -93,12 +123,18 @@ class WifiPluginController {
       this.socketService.off('pushWirelessNetworks');
       this.socketService.off('pushWizardWirelessConnResults');
     });
-    this.socketService.on('pushWirelessNetworks', (data) => {
-      });
   }
 
   initService() {
     this.socketService.emit('getWirelessNetworks');
+  }
+
+  isPersistentWizard() {
+    if (this.uiSettingsService.uiSettings && this.uiSettingsService.uiSettings.persistentWizard === true) {
+      return true;
+    } else {
+      return false;
+    }
   }
 }
 
